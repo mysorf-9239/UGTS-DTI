@@ -34,11 +34,15 @@ class UncertaintyGatedFusion(nn.Module):
         self.gate = PairGate(hidden=int(gate_hidden))
 
     def forward(self, v_d, v_p, d_idx, p_idx, graphs, feat_drug, feat_prot, enable_mc=True):
-        def student_fn(): return self.student(v_d, v_p).view(-1)
-        def teacher_fn(): return self.teacher(graphs, feat_drug, feat_prot, d_idx, p_idx).view(-1)
+        def student_fn():
+            return self.student(v_d, v_p).view(-1)
+
+        def teacher_fn():
+            return self.teacher(graphs, feat_drug, feat_prot, d_idx, p_idx).view(-1)
 
         if enable_mc and self.mc_samples > 1:
-            self.student.train(); self.teacher.train()
+            self.student.train()
+            self.teacher.train()
             logit_s, var_s = _mc_dropout_logits(student_fn, self.mc_samples)
             logit_t, var_t = _mc_dropout_logits(teacher_fn, self.mc_samples)
             u_s, u_t = var_s.detach(), var_t.detach()
@@ -52,6 +56,7 @@ class UncertaintyGatedFusion(nn.Module):
     def kd_loss(self, logit_s, logit_t):
         T = self.T
         ps, pt = torch.sigmoid(logit_s / T), torch.sigmoid(logit_t / T).detach()
-        eps = 1e-7; ps, pt = ps.clamp(eps, 1 - eps), pt.clamp(eps, 1 - eps)
+        eps = 1e-7
+        ps, pt = ps.clamp(eps, 1 - eps), pt.clamp(eps, 1 - eps)
         kl = pt * torch.log(pt / ps) + (1 - pt) * torch.log((1 - pt) / (1 - ps))
         return kl.mean() * (T * T)

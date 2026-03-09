@@ -1,4 +1,6 @@
 import math
+from typing import cast
+
 import torch
 import torch.nn as nn
 
@@ -10,13 +12,14 @@ def spmm(A: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     X: dense tensor shape (N, F)
     Returns: (N, F)
     """
-    return torch.sparse.mm(A, X)
+    return cast(torch.Tensor, torch.sparse.mm(A, X))
 
 
 class GraphConvolution(nn.Module):
     """
     Basic GCN layer: A * (XW) (+ b)
     """
+
     def __init__(self, in_features: int, out_features: int, bias: bool = True):
         super().__init__()
         self.weight = nn.Parameter(torch.empty(in_features, out_features))
@@ -43,6 +46,7 @@ class GCNStack(nn.Module):
     """
     Stack of 3 GCN layers.
     """
+
     def __init__(self, dim: int):
         super().__init__()
         self.g1 = GraphConvolution(dim, dim)

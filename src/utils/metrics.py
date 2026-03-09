@@ -1,18 +1,20 @@
 import numpy as np
 import scipy.stats as stats
-from .engine import POS_LABEL, NEG_LABEL
+
+from .engine import NEG_LABEL, POS_LABEL
+
 
 def concordance_index(y_true, y_pred):
     """
     Calculate the Concordance Index (CI) for DTI prediction.
-    CI is the proportion of pairs of interactions where the predicted values 
+    CI is the proportion of pairs of interactions where the predicted values
     have the same order as the observed values.
     """
     ind = np.argsort(y_true)
     y_true = y_true[ind]
     y_pred = y_pred[ind]
-    i = len(y_true)-1
-    count = 0
+    i = len(y_true) - 1
+    count = 0.0
     num_pairs = 0
     while i > 0:
         j = i - 1
@@ -27,17 +29,21 @@ def concordance_index(y_true, y_pred):
         i -= 1
     return count / num_pairs if num_pairs > 0 else 1.0
 
+
 def pearson_correlation(y_true, y_pred):
     """Calculate Pearson correlation coefficient."""
     return stats.pearsonr(y_true, y_pred)[0]
 
+
 def mse(y_true, y_pred):
     """Calculate Mean Squared Error."""
-    return np.mean((y_true - y_pred)**2)
+    return np.mean((y_true - y_pred) ** 2)
+
 
 def rmse(y_true, y_pred):
     """Calculate Root Mean Squared Error."""
     return np.sqrt(mse(y_true, y_pred))
+
 
 def class_metrics(y_true, y_pred):
     """
@@ -53,10 +59,10 @@ def class_metrics(y_true, y_pred):
 
     sensitivity = TP / (TP + FN) if (TP + FN) > 0 else 1.0
     specificity = TN / (TN + FP) if (TN + FP) > 0 else 1.0
-    precision   = TP / (TP + FP) if (TP + FP) > 0 else 1.0
-    recall      = sensitivity
-    accuracy    = (TP + TN) / max(1, (TP + TN + FP + FN))
-    f1          = (2*TP) / (2*TP + FP + FN) if (2*TP + FP + FN) > 0 else 1.0
+    precision = TP / (TP + FP) if (TP + FP) > 0 else 1.0
+    recall = sensitivity
+    accuracy = (TP + TN) / max(1, (TP + TN + FP + FN))
+    f1 = (2 * TP) / (2 * TP + FP + FN) if (2 * TP + FP + FN) > 0 else 1.0
 
     return {
         "sensitivity": float(sensitivity),
@@ -67,6 +73,7 @@ def class_metrics(y_true, y_pred):
         "f1": float(f1),
     }
 
+
 def all_dti_metrics(y_true, y_prob):
     """
     Unified function for all DTI metrics (classification + regression-style).
@@ -75,11 +82,11 @@ def all_dti_metrics(y_true, y_prob):
     """
     y_pred = (y_prob >= 0.5).astype(int)
     results = class_metrics(y_true, y_pred)
-    
+
     # These metrics are traditionally for regression but often applied to scores in DTI research
     results["mse"] = float(mse(y_true, y_prob))
     results["rmse"] = float(rmse(y_true, y_prob))
     results["pearson"] = float(pearson_correlation(y_true, y_prob))
     results["ci"] = float(concordance_index(y_true, y_prob))
-    
+
     return results

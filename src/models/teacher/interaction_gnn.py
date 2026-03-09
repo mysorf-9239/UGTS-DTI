@@ -1,7 +1,9 @@
 import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from .layers import GCNStack
 
 
@@ -70,7 +72,9 @@ class DIA_Block(nn.Module):
 
 
 class SimpleMIDTI(nn.Module):
-    def __init__(self, n_drug, n_prot, dim=256, n_heads=8, dia_layers=2, dropout=0.1, mlp_hidden=128):
+    def __init__(
+        self, n_drug, n_prot, dim=256, n_heads=8, dia_layers=2, dropout=0.1, mlp_hidden=128
+    ):
         super().__init__()
         self.nD = n_drug
         self.nP = n_prot
@@ -92,7 +96,7 @@ class SimpleMIDTI(nn.Module):
         )
 
     def forward(self, graphs, feat_drug, feat_prot, drug_idx, prot_idx):
-        nD, nP = self.nD, self.nP
+        nD, _nP = self.nD, self.nP
         feat_joint = torch.cat([feat_drug, feat_prot], dim=0)
         dd1, dd2, dd3 = self.g_dd(graphs["dd"], feat_drug)
         pp1, pp2, pp3 = self.g_pp(graphs["pp"], feat_prot)
@@ -102,8 +106,12 @@ class SimpleMIDTI(nn.Module):
         dpP = [dp1[nD:], dp2[nD:], dp3[nD:]]
         hpD = [hp1[:nD], hp2[:nD], hp3[:nD]]
         hpP = [hp1[nD:], hp2[nD:], hp3[nD:]]
-        drug_stack = torch.stack([dd1, dd2, dd3, dpD[0], dpD[1], dpD[2], hpD[0], hpD[1], hpD[2]], dim=1)
-        prot_stack = torch.stack([pp1, pp2, pp3, dpP[0], dpP[1], dpP[2], hpP[0], hpP[1], hpP[2]], dim=1)
+        drug_stack = torch.stack(
+            [dd1, dd2, dd3, dpD[0], dpD[1], dpD[2], hpD[0], hpD[1], hpD[2]], dim=1
+        )
+        prot_stack = torch.stack(
+            [pp1, pp2, pp3, dpP[0], dpP[1], dpP[2], hpP[0], hpP[1], hpP[2]], dim=1
+        )
         drugs, prots = drug_stack[drug_idx], prot_stack[prot_idx]
         d_cat, p_cat = drugs, prots
         for blk in self.dia:

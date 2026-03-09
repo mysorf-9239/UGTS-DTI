@@ -25,18 +25,23 @@ def knn_cosine_graph(emb: np.ndarray, k: int):
     rows = np.repeat(np.arange(sim.shape[0]), k)
     cols = idx.reshape(-1)
     w = sim[rows, cols].astype(np.float32)
-    best = {}
-    for r, c, ww in zip(rows, cols, w):
-        if r == c: continue
-        a, b = (r, c) if r < c else (c, r)
+    best: dict[tuple[int, int], float] = {}
+    for r, c, ww in zip(rows, cols, w, strict=False):
+        if r == c:
+            continue
+        a, b = (int(r), int(c)) if r < c else (int(c), int(r))
         best[(a, b)] = max(best.get((a, b), -1e9), float(ww))
     e_r, e_c, e_w = [], [], []
     for (a, b), ww in best.items():
-        e_r += [a, b]; e_c += [b, a]; e_w += [ww, ww]
+        e_r += [a, b]
+        e_c += [b, a]
+        e_w += [ww, ww]
     return np.array([e_r, e_c], dtype=np.int64), np.array(e_w, dtype=np.float32)
 
 
-def build_midti_graphs(drug_emb: np.ndarray, prot_emb: np.ndarray, dp_pairs: np.ndarray, k_dd: int, k_pp: int, device):
+def build_midti_graphs(
+    drug_emb: np.ndarray, prot_emb: np.ndarray, dp_pairs: np.ndarray, k_dd: int, k_pp: int, device
+):
     nD, nP = drug_emb.shape[0], prot_emb.shape[0]
     dd_ei, dd_ew = knn_cosine_graph(drug_emb, k_dd)
     pp_ei, pp_ew = knn_cosine_graph(prot_emb, k_pp)
@@ -48,10 +53,17 @@ def build_midti_graphs(drug_emb: np.ndarray, prot_emb: np.ndarray, dp_pairs: np.
     dp_ei = np.stack([e_r, e_c], axis=0)
     dp = _normalize_adj(dp_ei, e_w, nD + nP, device)
     dd_idx, dd_val = dd.indices().detach().cpu().numpy(), dd.values().detach().cpu().numpy()
-    pp_idx = pp.indices().detach().cpu().numpy(); pp_idx_shift = pp_idx.copy(); pp_idx_shift[0] += nD; pp_idx_shift[1] += nD
+    pp_idx = pp.indices().detach().cpu().numpy()
+    pp_idx_shift = pp_idx.copy()
+    pp_idx_shift[0] += nD
+    pp_idx_shift[1] += nD
     pp_val = pp.values().detach().cpu().numpy()
     dp_idx, dp_val = dp.indices().detach().cpu().numpy(), dp.values().detach().cpu().numpy()
     ddpp_idx = np.concatenate([dd_idx, pp_idx_shift, dp_idx], axis=1)
     ddpp_val = np.concatenate([dd_val, pp_val, dp_val], axis=0)
-    ddpp = torch.sparse_coo_tensor(torch.tensor(ddpp_idx, dtype=torch.long, device=device), torch.tensor(ddpp_val, dtype=torch.float32, device=device), (nD + nP, nD + nP)).coalesce()
+    ddpp = torch.sparse_coo_tensor(
+        torch.tensor(ddpp_idx, dtype=torch.long, device=device),
+        torch.tensor(ddpp_val, dtype=torch.float32, device=device),
+        (nD + nP, nD + nP),
+    ).coalesce()
     return {"dd": dd, "pp": pp, "dp": dp, "ddpp": ddpp}
